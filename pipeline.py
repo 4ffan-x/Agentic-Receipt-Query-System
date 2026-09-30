@@ -6,8 +6,8 @@ from qdrant_client.models import PointStruct
 from FlagEmbedding import BGEM3FlagModel
 from receipt_to_text import receipt_to_text
 
-processor = DonutProcessor.from_pretrained("./model/donut_cord_final_v2")
-donut_model = VisionEncoderDecoderModel.from_pretrained("./model/donut_cord_final_v2")
+processor = DonutProcessor.from_pretrained("./model/extracted/donut_cord_final_v2")
+donut_model = VisionEncoderDecoderModel.from_pretrained("./model/extracted/donut_cord_final_v2")
 
 qdrant_client = QdrantClient(host="localhost", port=6333)
 embed_model = BGEM3FlagModel('BAAI/bge-m3')
