@@ -1,5 +1,4 @@
 def receipt_to_text(parsed_json):
-    """Convert Donut's parsed JSON output into a natural-language string for embedding."""
     menu = parsed_json.get('menu', [])
     if isinstance(menu, dict):
         menu = [menu]
@@ -10,7 +9,7 @@ def receipt_to_text(parsed_json):
         cnt = item.get('cnt', '')
         price = item.get('price', '')
         if cnt:
-            item_descriptions.append(f"{cnt} x {name} for {price}")
+            item_descriptions.append(f"{cnt} {name} for {price}")
         else:
             item_descriptions.append(f"{name} for {price}")
 
