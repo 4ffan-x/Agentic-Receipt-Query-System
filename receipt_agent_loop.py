@@ -7,11 +7,15 @@ from qdrant_client import QdrantClient
 
 MODEL_NAME = "qwen2.5:3b"
 OLLAMA_URL = "http://localhost:11434/api/chat"
-QDRANT_CLIENT = QdrantClient(host="localhost", port=6333)
+QDRANT_CLIENT = None
 
 
 def search_receipts(query: str, limit: int = 5) -> List[Dict[str, Any]]:
     """Search Qdrant for relevant receipt data using semantic vector similarity."""
+    global QDRANT_CLIENT
+    if QDRANT_CLIENT is None:
+        QDRANT_CLIENT = QdrantClient(host="localhost", port=6333)
+
     print("[SEARCH] Loading BGE-M3 to encode the query...", flush=True)
     import torch
     from FlagEmbedding import BGEM3FlagModel
@@ -70,6 +74,20 @@ def final_answer(question: str, results: List[Dict[str, Any]]) -> str:
 
 
 def run_agent(question: str) -> str:
+    if "receipt" not in question.casefold():
+        print("[ROUTE] General question; skipping receipt search", flush=True)
+        response = call_ollama([
+            {
+                "role": "system",
+                "content": "Answer the user's general question directly. Do not claim access to their private receipts or purchases."
+            },
+            {"role": "user", "content": question},
+        ])
+        answer = response.get("message", {}).get("content", "I could not generate an answer.")
+        print(f"\n[ANSWER] {answer}")
+        return answer
+
+    print(f"\n[ROUTE] Receipt question: {question}", flush=True)
     print(f"\n[SEARCH] Searching Qdrant for: {question}")
     results = search_receipts(question, limit=5)
     print(f"[SEARCH] Retrieved {len(results)} result(s)")
@@ -81,7 +99,7 @@ def run_agent(question: str) -> str:
 if __name__ == "__main__":
     print("Receipt assistant ready. Type 'exit' to quit.")
     while True:
-        question = input("\nAsk about your receipts: ").strip()
+        question = input("\nAsk your query: ").strip()
         if question.lower() in {"exit", "quit"}:
             break
         if question:
