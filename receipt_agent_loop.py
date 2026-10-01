@@ -44,7 +44,7 @@ def search_receipts(query: str, limit: int = 5) -> List[Dict[str, Any]]:
     return matches
 
 
-def call_ollama(messages: List[Dict[str, str]]):
+def call_ollama(messages: List[Dict[str, str]], tools: List[Dict[str, Any]] = None):
     payload = {
         "model": MODEL_NAME,
         "messages": messages,
@@ -52,6 +52,8 @@ def call_ollama(messages: List[Dict[str, str]]):
         "keep_alive": 0,
         "options": {"num_thread": 2, "num_ctx": 2048},
     }
+    if tools:
+        payload["tools"] = tools
 
     print("[OLLAMA] Waiting for model response...", flush=True)
     response = requests.post(OLLAMA_URL, json=payload, timeout=180)
@@ -59,41 +61,72 @@ def call_ollama(messages: List[Dict[str, str]]):
     return response.json()
 
 
-def final_answer(question: str, results: List[Dict[str, Any]]) -> str:
-    data = json.dumps(results, ensure_ascii=False)
-    prompt = (
-        "Answer the user's question using ONLY the retrieved receipt data below. "
-        "Do not invent numbers or facts. If the data does not support the answer, say so clearly.\n"
-        f"Question: {question}\n"
-        f"Receipt data: {data}"
-    )
-    response = call_ollama([{"role": "user", "content": prompt}])
-    answer = response.get("message", {}).get("content", "I could not answer from the retrieved data.")
-    print(f"\n[ANSWER] {answer}")
-    return answer
+RECEIPT_SEARCH_TOOL = [{
+    "type": "function",
+    "function": {
+        "name": "search_receipts",
+        "description": (
+            "Search the user's saved receipt records for their purchases, items, "
+            "merchants, dates, totals, or personal spending. Use this when the "
+            "question asks about something the user bought or paid for."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "A concise semantic search query for the receipt records."
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}]
 
 
 def run_agent(question: str) -> str:
-    if "receipt" not in question.casefold():
-        print("[ROUTE] General question; skipping receipt search", flush=True)
-        response = call_ollama([
-            {
-                "role": "system",
-                "content": "Answer the user's general question directly. Do not claim access to their private receipts or purchases."
-            },
-            {"role": "user", "content": question},
-        ])
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Answer general questions directly. For questions about the user's "
+                "own purchases, receipts, merchants, or spending, call the "
+                "search_receipts tool before answering. After receiving tool results, "
+                "answer only from those results; do not invent purchase details."
+            )
+        },
+        {"role": "user", "content": question},
+    ]
+    response = call_ollama(messages, tools=RECEIPT_SEARCH_TOOL)
+    tool_calls = response.get("message", {}).get("tool_calls", [])
+
+    if not tool_calls:
         answer = response.get("message", {}).get("content", "I could not generate an answer.")
         print(f"\n[ANSWER] {answer}")
         return answer
 
-    print(f"\n[ROUTE] Receipt question: {question}", flush=True)
-    print(f"\n[SEARCH] Searching Qdrant for: {question}")
-    results = search_receipts(question, limit=5)
-    print(f"[SEARCH] Retrieved {len(results)} result(s)")
-    if not results:
-        return "No receipts were found in Qdrant."
-    return final_answer(question, results)
+    tool_call = tool_calls[0]
+    function = tool_call.get("function", {})
+    if function.get("name") != "search_receipts":
+        raise ValueError(f"Unknown tool requested: {function.get('name')}")
+
+    arguments = function.get("arguments", {})
+    if isinstance(arguments, str):
+        arguments = json.loads(arguments)
+    query = arguments.get("query", question).strip() or question
+    print(f"[TOOL] Qwen chose receipt search: {query}", flush=True)
+    results = search_receipts(query, limit=5)
+    print(f"[TOOL] Retrieved {len(results)} result(s)", flush=True)
+
+    messages.append(response["message"])
+    messages.append({
+        "role": "tool",
+        "content": json.dumps(results, ensure_ascii=False),
+    })
+    final_response = call_ollama(messages)
+    answer = final_response.get("message", {}).get("content", "I could not answer from the retrieved receipts.")
+    print(f"\n[ANSWER] {answer}")
+    return answer
 
 
 if __name__ == "__main__":
