@@ -1,8 +1,10 @@
-# Agentic Receipt Query System
+# 🧾 Agentic Receipt Query System
 
 Ask questions about receipt purchases using a locally fine-tuned receipt parser, semantic search with Qdrant, and a local Qwen model.
 
-## Overview
+---
+
+## 🧭 Overview
 
 The project has two connected flows:
 
@@ -11,7 +13,9 @@ The project has two connected flows:
 
 General questions can be answered by Qwen without searching receipts. Receipt questions require Qdrant to be running.
 
-## Models and services
+---
+
+## 🧠 Models and Services
 
 | Component | Model or service | Role |
 | --- | --- | --- |
@@ -20,13 +24,15 @@ General questions can be answered by Qwen without searching receipts. Receipt qu
 | Vector database | Qdrant, collection `receipts` | Stores each vector with the parsed receipt JSON as its payload; searches by cosine similarity. |
 | Local answer model | Ollama `qwen2.5:3b` | Answers general questions and can request the `search_receipts` tool for questions about purchases or spending. |
 
-### Donut training notebook
+### Donut Training Notebook
 
 The notebook fine-tunes a Donut vision-encoder-decoder model using CORD-V2. Its recorded training run shows 5 epochs, 4,000 steps, and a training loss of about 0.1309. Training loss is not an accuracy score and does not guarantee correct extraction on every receipt.
 
 The Ollama tag is **Qwen 2.5 3B**: “3B” refers to the model's approximate parameter count, not its exact RAM or disk usage. It is not a “Q5” model designation. Actual resource use depends on the Ollama model quantization and the rest of the workload.
 
-## Example receipt
+---
+
+## 📸 Example Receipt
 
 ![Example receipt image](assets/receipt_example.jpg)
 
@@ -34,7 +40,9 @@ Example question: **What is the grand total on this receipt?**
 
 Example answer from the visible receipt: **1,591,600**. This is a manually read illustration, not a claim that the OCR pipeline produced this exact result.
 
-## Project files
+---
+
+## 🗂️ Project Files
 
 | File or folder | Purpose |
 | --- | --- |
@@ -48,7 +56,9 @@ Example answer from the visible receipt: **1,591,600**. This is a manually read 
 | `store_receipt.py`, `store_firstpoint.py` | Example scripts for inserting receipt payloads into Qdrant. |
 | `assets/` | Sample receipt images. |
 
-## Setup
+---
+
+## ⚙️ Setup
 
 ### Requirements
 
@@ -85,7 +95,9 @@ python setup_collection.py
 
 The trained Donut model and Qdrant database are local assets and are ignored by Git. They are not downloaded by the setup commands above. Place the trained checkpoint at the path shown above before running image ingestion.
 
-## Run the pipeline
+---
+
+## ▶️ Run the Pipeline
 
 With Qdrant running and the trained Donut checkpoint available, ingest the sample image:
 
@@ -101,7 +113,9 @@ python receipt_agent_loop.py
 
 Ask general questions directly, or ask about a purchase, for example: `How much did I spend on pizza?`. Type `exit` or `quit` to leave.
 
-## Current behavior and limitations
+---
+
+## ⚠️ Current Behavior and Limitations
 
 - Receipt search uses semantic similarity and returns up to five nearest points; it is not a full-database accounting query or guaranteed sum across all receipts.
 - The current agent performs one search and one answer attempt. It has no sufficiency evaluation or retry loop, keeping local inference lighter.
@@ -109,6 +123,12 @@ Ask general questions directly, or ask about a purchase, for example: `How much 
 - Receipt questions require Qdrant and stored receipt points. General questions do not require Qdrant.
 - This repository is a local script-based prototype; it does not currently include a FastAPI service or Docker Compose deployment for the Python application.
 
-## Data and GitHub
+---
+
+## 🔒 Data and GitHub
 
 The `.gitignore` excludes `model/`, `qdrant_storage/`, and `venv/`. The trained weights, downloaded Ollama models, and local Qdrant data are not part of the GitHub source. Keep private or sensitive receipts out of public repositories.
+
+---
+
+<p align="center"><sub>Local receipt understanding, semantic search, and question answering.</sub></p>
